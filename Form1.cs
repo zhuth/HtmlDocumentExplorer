@@ -20,15 +20,20 @@ namespace HtmlDocumentExplorer
 
         HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
 
-        private void button1_Click(object sender, EventArgs e)
+        private void buildUI(string html)
         {
-            string html = Clipboard.GetText();
             doc = new HtmlAgilityPack.HtmlDocument();
             doc.LoadHtml(html);
 
             tvw.Nodes.Clear();
             var root = tvw.Nodes.Add("root");
             addNode(doc.DocumentNode, root);
+        }
+
+        private void btnLoadFromClipboard_Click(object sender, EventArgs e)
+        {
+            string html = Clipboard.GetText();
+            buildUI(html);
         }
 
         private void addNode(HtmlAgilityPack.HtmlNode n, TreeNode tn)
@@ -42,40 +47,60 @@ namespace HtmlDocumentExplorer
             Application.DoEvents();
         }
 
+        HtmlAgilityPack.HtmlNodeCollection collection = null;
+        int matchIndex = 0;
+
         private void txtXpath_KeyUp(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
             {
-                try
+                if (txtXpath.Text.StartsWith("http://"))
                 {
-                    var sg = doc.DocumentNode.SelectSingleNode(txtXpath.Text);
-                    if (sg == null) return;
-                    var xpath = sg.XPath;
-                    found = false;
-                    findNode(tvw.Nodes[0], xpath);
+                    try
+                    {
+                        web.Navigate(txtXpath.Text);
+                    }
+                    catch
+                    {
+
+                    }
                 }
-                catch { }
-                tvw.Focus();
+                else
+                {
+                    try
+                    {
+                        collection = doc.DocumentNode.SelectNodes(txtXpath.Text);
+                        if (collection == null) return;
+                        btnPrevMatch.Visible = btnNextMatch.Visible = true;
+                        btnPrevMatch.Enabled = false; btnNextMatch.Enabled = collection.Count > 1;
+                        matchIndex = 0;
+                        selectMatchNode();
+                    }
+                    catch { }
+                    tvw.Focus();
+                }
             }
         }
 
-        bool found = false;
-        private void findNode(TreeNode tn, string key)
+        private void selectMatchNode()
+        {
+            var xpath = collection[matchIndex].XPath;
+           findNode(tvw.Nodes[0], xpath);
+        }
+
+        private void findNode(TreeNode root, string key)
         {
             Application.DoEvents();
-            if (found) return;
-            if (tn.Nodes[key] == null)
+
+            string[] seg = key.Split('/');
+            string ppath = "";
+            for (int i = 1; i < seg.Length; ++i)
             {
-                foreach (TreeNode child in tn.Nodes)
-                {
-                    findNode(child, key);
-                }
+                ppath += "/" + seg[i];
+                if (!root.Nodes.ContainsKey(ppath)) return;
+                root = root.Nodes[ppath];
             }
-            else
-            {
-                tvw.SelectedNode = tn.Nodes[key];
-                found = true;
-            }
+            tvw.SelectedNode = root;
         }
 
         private void tvw_AfterSelect(object sender, TreeViewEventArgs e)
@@ -83,9 +108,31 @@ namespace HtmlDocumentExplorer
             txtXpath.Text = e.Node.Name;
             try
             {
-                txtInnerHtml.Text = doc.DocumentNode.SelectSingleNode(txtXpath.Text).OuterHtml;
+                txtInnerHtml.Text = chkTextOnly.Checked ? doc.DocumentNode.SelectSingleNode(txtXpath.Text).InnerText : doc.DocumentNode.SelectSingleNode(txtXpath.Text).OuterHtml;
             }
             catch { }
+        }
+
+        private void web_DocumentCompleted(object sender, WebBrowserDocumentCompletedEventArgs e)
+        {
+            try { buildUI(web.Document.GetElementsByTagName("html")[0].InnerHtml); }
+            catch { }
+        }
+
+        private void btnPrevMatch_Click(object sender, EventArgs e)
+        {
+            matchIndex--;
+            selectMatchNode();
+            btnNextMatch.Enabled = true;
+            if (collection == null || matchIndex <= 0) { btnPrevMatch.Enabled = false; return; }
+        }
+
+        private void btnNextMatch_Click(object sender, EventArgs e)
+        {
+            matchIndex++;
+            selectMatchNode();
+            btnPrevMatch.Enabled = true;
+            if (collection == null || matchIndex >= collection.Count - 1) { btnNextMatch.Enabled = false; return; }
         }
     }
 }
