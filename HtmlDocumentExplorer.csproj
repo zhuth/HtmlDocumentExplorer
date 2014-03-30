@@ -33,7 +33,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="HtmlAgilityPack">
-      <HintPath>C:\Users\ZTH\AppData\Local\Microsoft\VisualStudio\12.0\Designer\ShadowCache\alushheq.bk5\csp14yuh.xyw\HtmlAgilityPack.dll</HintPath>
+      <HintPath>..\..\Palas\MediaImportTool\bin\Debug\HtmlAgilityPack.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
